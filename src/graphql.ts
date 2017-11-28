@@ -26,6 +26,10 @@ import {
   argumentsObjectFromField,
 } from './storeUtils';
 
+import {
+  resolveNamedFragments,
+} from './astTools';
+
 export type Resolver = (
   fieldName: string,
   rootValue: any,
@@ -76,8 +80,6 @@ export function graphql(
   variableValues?: VariableMap,
   execOptions: ExecOptions = {},
 ) {
-  const mainDefinition = getMainDefinition(document);
-
   const fragments = getFragmentDefinitions(document);
   const fragmentMap = createFragmentMap(fragments);
 
@@ -94,6 +96,13 @@ export function graphql(
     resolver,
     fragmentMatcher,
   };
+
+  document = resolveNamedFragments(document, {
+    fragmentMatcher: (idValue, typeCondition) =>
+      fragmentMatcher(idValue, typeCondition, contextValue),
+  });
+
+  const mainDefinition = getMainDefinition(document);
 
   return executeSelectionSet(
     mainDefinition.selectionSet,
