@@ -5,6 +5,10 @@ import {
   FragmentMap,
 } from './getFromAST';
 
+import {
+  shouldInclude,
+} from './directives';
+
 function getDefinitionName(definition) {
   switch (definition.kind) {
   case 'FragmentSpread':
@@ -21,16 +25,30 @@ function getDefinitionName(definition) {
 /**
  * Merge selections of 2 definitions.
  */
-function mergeDefinitions(a, b) {
+export function mergeDefinitions(a, b) {
   const name = getDefinitionName(a);
+
   if (!!a.selectionSet !== !!b.selectionSet) {
     throw Error(`incompatible field definition for ${name}`);
   }
+
   if (!a.selectionSet) {
     return b;
   }
 
-  const selectionsMap = [...a.selectionSet.selections, ...b.selectionSet.selections].reduce((o, sel) => {
+  const selectionSet = mergeSelectionSets(a.selectionSet, b.selectionSet);
+
+  return {
+    ...b,
+    selectionSet,
+  };
+}
+
+/**
+ * Merge selectionSets
+ */
+export function mergeSelectionSets(a, b) {
+  const selectionsMap = [...a.selections, ...b.selections].reduce((o, sel) => {
     const selName = getDefinitionName(sel);
     if (!(selName in o)) {
       o[selName] = sel;
@@ -44,23 +62,25 @@ function mergeDefinitions(a, b) {
 
   return {
     ...b,
-    selectionSet: {
-      ...b.selectionSet,
-      selections,
-    },
+    selections,
   };
 }
 
 /**
- * Return selections with resolved named fragments.
+ * Return selections with resolved named fragments and directives.
  */
 function getTransformedSelections(definition, execContext) {
   const {
     fragmentMap,
     fragmentMatcher,
+    variables,
   } = execContext;
 
   const selectionsMap = definition.selectionSet.selections.reduce((o, sel) => {
+    if (!shouldInclude(sel, variables)) {
+      // Skip this entirely
+      return o;
+    }
     const name = getDefinitionName(sel);
 
     if (sel.kind !== 'FragmentSpread') {
@@ -90,6 +110,12 @@ function getTransformedSelections(definition, execContext) {
 
     const fragmentSelections = getTransformedSelections(fragmentMap[name], execContext);
     fragmentSelections.forEach((s) => {
+
+      if (!shouldInclude(s, variables)) {
+        // Skip this entirely
+        return;
+     }
+
       const selName = getDefinitionName(s);
       if (!(selName in o)) {
         o[selName] = s;
@@ -106,7 +132,7 @@ function getTransformedSelections(definition, execContext) {
 }
 
 /**
- * Resolve fragments in a definition.
+ * Resolve named fragments and directives in a definition.
  */
 function transformDefinition(definition, execContext) {
   if (!definition.selectionSet) {
@@ -121,15 +147,17 @@ function transformDefinition(definition, execContext) {
   };
 }
 
-export function resolveNamedFragments(document: any, options: any = {}): any {
+export function resolveNamedFragmentsAndDirectives(document: any, options: any = {}): any {
   const mainDefinition = getMainDefinition(document);
   const fragments = getFragmentDefinitions(document);
   const fragmentMap = createFragmentMap(fragments);
   const fragmentMatcher = options.fragmentMatcher || (() => true);
+  const variables = options.variables || {};
 
   const execContext = {
     fragmentMap,
     fragmentMatcher,
+    variables,
   };
 
   return {

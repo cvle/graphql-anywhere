@@ -27,7 +27,8 @@ import {
 } from './storeUtils';
 
 import {
-  resolveNamedFragments,
+  resolveNamedFragmentsAndDirectives,
+  mergeSelectionSets,
 } from './astTools';
 
 export type Resolver = (
@@ -92,12 +93,12 @@ export function graphql(
     fragmentMatcher,
   };
 
-  document = resolveNamedFragments(document, {
+  const resolved = resolveNamedFragmentsAndDirectives(document, {
     fragmentMatcher: (idValue, typeCondition) =>
       fragmentMatcher(idValue, typeCondition, contextValue),
   });
 
-  const mainDefinition = getMainDefinition(document);
+  const mainDefinition = getMainDefinition(resolved);
 
   return executeSelectionSet(
     mainDefinition.selectionSet,
@@ -114,17 +115,27 @@ function executeSelectionSet(
 ) {
   const {
     contextValue,
-    variableValues: variables,
   } = execContext;
 
   const result = {};
 
-  selectionSet.selections.forEach((selection) => {
-    if (!shouldInclude(selection, variables)) {
-      // Skip this entirely
-      return;
-    }
+  const inlineFragments = selectionSet.selections.filter((selection) => isInlineFragment(selection));
+  if (inlineFragments.length) {
+    let resolvedSelectionSet = {
+      ...selectionSet,
+      selections: selectionSet.selections.filter((selection) => !isInlineFragment(selection)),
+    };
+    inlineFragments.forEach((fragment: InlineFragmentNode) => {
+      const typeCondition = fragment.typeCondition.name.value;
 
+      if (execContext.fragmentMatcher(rootValue, typeCondition, contextValue)) {
+        resolvedSelectionSet = mergeSelectionSets(resolvedSelectionSet, fragment.selectionSet);
+      }
+    });
+    return executeSelectionSet(resolvedSelectionSet, rootValue, execContext);
+  }
+
+  selectionSet.selections.forEach((selection) => {
     if (isField(selection)) {
       const fieldResult = executeField(
         selection,
@@ -135,25 +146,11 @@ function executeSelectionSet(
       const resultFieldKey = resultKeyNameFromField(selection);
 
       if (fieldResult !== undefined) {
-        if (result[resultFieldKey] === undefined) {
-          result[resultFieldKey] = fieldResult;
-        } else {
-          merge(result[resultFieldKey], fieldResult);
+        if (resultFieldKey in result) {
+          // Should never happen if the ast preparation was correct.
+          throw new Error(`unexpected error`);
         }
-      }
-    } else if (isInlineFragment(selection)) {
-      let fragment: InlineFragmentNode = selection;
-
-      const typeCondition = fragment.typeCondition.name.value;
-
-      if (execContext.fragmentMatcher(rootValue, typeCondition, contextValue)) {
-        const fragmentResult = executeSelectionSet(
-          fragment.selectionSet,
-          rootValue,
-          execContext,
-        );
-
-        merge(result, fragmentResult);
+        result[resultFieldKey] = fieldResult;
       }
     } else {
       throw new Error(`unknown definition ${selection.kind}`);
@@ -238,26 +235,3 @@ function executeSubSelectedArray(
   });
 }
 
-function merge(dest, src) {
-  if (
-    src === null ||
-    typeof src !== 'object'
-  ) {
-    // These types just override whatever was in dest
-    return src;
-  }
-
-  // Merge sub-objects
-  Object.keys(dest).forEach((destKey) => {
-    if (src.hasOwnProperty(destKey)) {
-      merge(dest[destKey], src[destKey]);
-    }
-  });
-
-  // Add props only on src
-  Object.keys(src).forEach((srcKey) => {
-    if (!dest.hasOwnProperty(srcKey)) {
-      dest[srcKey] = src[srcKey];
-    }
-  });
-}
