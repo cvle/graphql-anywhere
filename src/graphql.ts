@@ -44,7 +44,6 @@ export type ResultMapper = (values: {[fieldName: string]: any}, rootValue: any) 
 export type FragmentMatcher = (rootValue: any, typeCondition: string, context: any) => boolean;
 
 export type ExecContext = {
-  fragmentMap: FragmentMap;
   contextValue: any;
   variableValues: VariableMap;
   resultMapper: ResultMapper;
@@ -80,16 +79,12 @@ export function graphql(
   variableValues?: VariableMap,
   execOptions: ExecOptions = {},
 ) {
-  const fragments = getFragmentDefinitions(document);
-  const fragmentMap = createFragmentMap(fragments);
-
   const resultMapper = execOptions.resultMapper;
 
   // Default matcher always matches all fragments
   const fragmentMatcher = execOptions.fragmentMatcher || (() => true);
 
   const execContext: ExecContext = {
-    fragmentMap,
     contextValue,
     variableValues,
     resultMapper,
@@ -118,7 +113,6 @@ function executeSelectionSet(
   execContext: ExecContext,
 ) {
   const {
-    fragmentMap,
     contextValue,
     variableValues: variables,
   } = execContext;
@@ -147,19 +141,8 @@ function executeSelectionSet(
           merge(result[resultFieldKey], fieldResult);
         }
       }
-    } else {
-      let fragment: InlineFragmentNode | FragmentDefinitionNode;
-
-      if (isInlineFragment(selection)) {
-        fragment = selection;
-      } else {
-        // This is a named fragment
-        fragment = fragmentMap[selection.name.value];
-
-        if (!fragment) {
-          throw new Error(`No fragment named ${selection.name.value}`);
-        }
-      }
+    } else if (isInlineFragment(selection)) {
+      let fragment: InlineFragmentNode = selection;
 
       const typeCondition = fragment.typeCondition.name.value;
 
@@ -172,6 +155,8 @@ function executeSelectionSet(
 
         merge(result, fragmentResult);
       }
+    } else {
+      throw new Error(`unknown definition ${selection.kind}`);
     }
   });
 
