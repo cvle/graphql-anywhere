@@ -96,6 +96,8 @@ export function graphql(
   const resolved = resolveNamedFragmentsAndDirectives(document, {
     fragmentMatcher: (idValue, typeCondition) =>
       fragmentMatcher(idValue, typeCondition, contextValue),
+    variables: variableValues,
+    rootValue,
   });
 
   const mainDefinition = getMainDefinition(resolved);

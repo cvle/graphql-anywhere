@@ -69,10 +69,9 @@ export function mergeSelectionSets(a, b) {
 /**
  * Return selections with resolved named fragments and directives.
  */
-function getTransformedSelections(definition, execContext) {
+function getTransformedSelections(definition, gqlType, execContext) {
   const {
     fragmentMap,
-    fragmentMatcher,
     variables,
   } = execContext;
 
@@ -81,10 +80,9 @@ function getTransformedSelections(definition, execContext) {
       // Skip this entirely
       return o;
     }
-    const name = getDefinitionName(sel);
-
     if (sel.kind !== 'FragmentSpread') {
       const transformed = transformDefinition(sel, execContext);
+      const name = getDefinitionName(sel);
 
       // Merge existing value.
       if (name in o) {
@@ -96,19 +94,33 @@ function getTransformedSelections(definition, execContext) {
       return o;
     }
 
-    const fragment = fragmentMap[name];
+    const fragment = fragmentMap[sel.name.value];
 
     if (!fragment) {
-      throw new Error(`fragment ${name} does not exist`);
+      throw new Error(`fragment ${fragment.name.value} does not exist`);
     }
 
     const typeCondition = fragment.typeCondition.name.value;
 
-    if (!fragmentMatcher(definition, typeCondition)) {
+    if (gqlType !== typeCondition) {
+      const node = {
+        ...fragment,
+        kind: 'InlineFragment',
+      };
+      const transformed = transformDefinition(node, execContext);
+      const name = getDefinitionName(node);
+
+      // Merge existing value.
+      if (name in o) {
+        o[name] = mergeDefinitions(o[name], transformed);
+        return o;
+      }
+
+      o[name] = transformed;
       return o;
     }
 
-    const fragmentSelections = getTransformedSelections(fragmentMap[name], execContext);
+    const fragmentSelections = getTransformedSelections(fragmentMap[name], typeCondition, execContext);
     fragmentSelections.forEach((s) => {
 
       if (!shouldInclude(s, variables)) {
@@ -142,7 +154,7 @@ function transformDefinition(definition, execContext) {
     ...definition,
     selectionSet: {
       ...definition.selectionSet,
-      selections: getTransformedSelections(definition, execContext),
+      selections: getTransformedSelections(definition, execContext.rootValue.id, execContext),
     },
   };
 }
@@ -151,13 +163,13 @@ export function resolveNamedFragmentsAndDirectives(document: any, options: any =
   const mainDefinition = getMainDefinition(document);
   const fragments = getFragmentDefinitions(document);
   const fragmentMap = createFragmentMap(fragments);
-  const fragmentMatcher = options.fragmentMatcher || (() => true);
   const variables = options.variables || {};
+  const rootValue = options.rootValue || {};
 
   const execContext = {
     fragmentMap,
-    fragmentMatcher,
     variables,
+    rootValue,
   };
 
   return {
