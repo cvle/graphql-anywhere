@@ -1,5 +1,5 @@
 {
-  "name": "graphql-anywhere",
+  "name": "graphql-anywhere-optimized",
   "version": "3.1.0",
   "description": "Run GraphQL queries with no schema and just one resolver",
   "main": "./lib/src/index.js",
