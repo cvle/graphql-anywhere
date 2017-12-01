@@ -81,7 +81,7 @@ function getTransformedSelections(definition, gqlType, execContext) {
       return o;
     }
     if (sel.kind !== 'FragmentSpread') {
-      const transformed = transformDefinition(sel, execContext);
+      const transformed = transformDefinition(sel, gqlType, execContext);
       const name = getDefinitionName(sel);
 
       // Merge existing value.
@@ -107,7 +107,7 @@ function getTransformedSelections(definition, gqlType, execContext) {
         ...fragment,
         kind: 'InlineFragment',
       };
-      const transformed = transformDefinition(node, execContext);
+      const transformed = transformDefinition(node, typeCondition, execContext);
       const name = getDefinitionName(node);
 
       // Merge existing value.
@@ -146,7 +146,7 @@ function getTransformedSelections(definition, gqlType, execContext) {
 /**
  * Resolve named fragments and directives in a definition.
  */
-function transformDefinition(definition, execContext) {
+function transformDefinition(definition, type, execContext) {
   if (!definition.selectionSet) {
     return definition;
   }
@@ -154,7 +154,7 @@ function transformDefinition(definition, execContext) {
     ...definition,
     selectionSet: {
       ...definition.selectionSet,
-      selections: getTransformedSelections(definition, execContext.rootValue.id, execContext),
+      selections: getTransformedSelections(definition, type, execContext),
     },
   };
 }
@@ -174,6 +174,6 @@ export function resolveNamedFragmentsAndDirectives(document: any, options: any =
 
   return {
     kind: 'Document',
-    definitions: [transformDefinition(mainDefinition, execContext)],
+    definitions: [transformDefinition(mainDefinition, execContext.rootValue.id, execContext)],
   };
 }
