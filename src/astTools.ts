@@ -120,7 +120,7 @@ function getTransformedSelections(definition, gqlType, execContext) {
       return o;
     }
 
-    const fragmentSelections = getTransformedSelections(fragmentMap[name], typeCondition, execContext);
+    const fragmentSelections = getTransformedSelections(fragment, typeCondition, execContext);
     fragmentSelections.forEach((s) => {
 
       if (!shouldInclude(s, variables)) {
