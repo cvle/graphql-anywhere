@@ -26,11 +26,6 @@ import {
   argumentsObjectFromField,
 } from './storeUtils';
 
-import {
-  resolveNamedFragmentsAndDirectives,
-  mergeSelectionSets,
-} from './astTools';
-
 export type Resolver = (
   fieldName: string,
   rootValue: any,
@@ -38,6 +33,11 @@ export type Resolver = (
   context: any,
   info: ExecInfo,
 ) => any;
+
+import {
+  transformDocument,
+  mergeSelectionSets,
+} from 'graphql-ast-tools';
 
 export type VariableMap = { [name: string]: any };
 
@@ -93,11 +93,9 @@ export function graphql(
     fragmentMatcher,
   };
 
-  const resolved = resolveNamedFragmentsAndDirectives(document, {
-    fragmentMatcher: (idValue, typeCondition) =>
-      fragmentMatcher(idValue, typeCondition, contextValue),
-    variables: variableValues,
-    rootValue,
+  // Resolve named fragments
+  const resolved = transformDocument(document, {
+    variables: variableValues || {},
   });
 
   const mainDefinition = getMainDefinition(resolved);
