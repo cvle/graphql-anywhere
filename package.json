@@ -59,6 +59,6 @@
     "typescript": "^2.2.1"
   },
   "dependencies": {
-    "graphql-ast-tools": "^0.1.5"
+    "graphql-ast-tools": "^0.1.6"
   }
 }
