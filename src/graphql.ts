@@ -35,6 +35,7 @@ export type Resolver = (
 ) => any;
 
 import {
+  TransformDocumentOptions,
   transformDocument,
   mergeSelectionSets,
 } from 'graphql-ast-tools';
@@ -79,6 +80,7 @@ export function graphql(
   contextValue?: any,
   variableValues?: VariableMap,
   execOptions: ExecOptions = {},
+  transformOptions: TransformDocumentOptions = {},
 ) {
   const resultMapper = execOptions.resultMapper;
 
@@ -95,6 +97,7 @@ export function graphql(
 
   // Resolve named fragments
   const resolved = transformDocument(document, {
+    ...transformOptions,
     variables: variableValues || {},
   });
 
