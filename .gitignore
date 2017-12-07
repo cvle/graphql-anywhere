@@ -26,10 +26,8 @@ build/Release
 # https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
 node_modules
 
-# temporarily keep lib build to be able to install directly from the branch.
-# lib
-
 # don't commit compiled files
+lib
 test-lib
 dist
 npm
