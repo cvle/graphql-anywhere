@@ -810,7 +810,7 @@ describe('graphql anywhere', () => {
     });
   });
 
-  it('Ignores @skip and @include when variables are undefined', () => {
+  it('Ignores @skip and @include when includeAll is set', () => {
     const resolver = (_, root) => root + 'fake';
 
     const query = gql`
