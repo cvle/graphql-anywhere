@@ -15,7 +15,6 @@ import {
 
 import {
   DirectiveInfo,
-  shouldInclude,
   getDirectiveInfoFromField,
 } from './directives';
 
@@ -42,7 +41,7 @@ import {
 
 export type VariableMap = { [name: string]: any };
 
-export type ResultMapper = (values: {[fieldName: string]: any}, rootValue: any) => any;
+export type ResultMapper = (values: { [fieldName: string]: any }, rootValue: any) => any;
 export type FragmentMatcher = (rootValue: any, typeCondition: string, context: any) => boolean;
 
 export type ExecContext = {
@@ -62,6 +61,7 @@ export type ExecInfo = {
 export type ExecOptions = {
   resultMapper?: ResultMapper;
   fragmentMatcher?: FragmentMatcher;
+  includeAll?: boolean;
 };
 
 // Based on graphql function from graphql-js:
@@ -87,9 +87,15 @@ export function graphql(
   // Default matcher always matches all fragments
   const fragmentMatcher = execOptions.fragmentMatcher || (() => true);
 
+  // If set ignore skip and if directives.
+  const includeAll = !!execOptions.includeAll;
+
+  // Default to {} when passing in falsy values.
+  const variables = variableValues || {};
+
   const execContext: ExecContext = {
     contextValue,
-    variableValues,
+    variableValues: variables,
     resultMapper,
     resolver,
     fragmentMatcher,
@@ -98,7 +104,8 @@ export function graphql(
   // Resolve named fragments
   const resolved = transformDocument(document, {
     ...transformOptions,
-    variables: variableValues || {},
+    // Passing variables will resolve @skip and @include directives.
+    variables: includeAll ? undefined : variables,
   });
 
   const mainDefinition = getMainDefinition(resolved);
@@ -237,4 +244,3 @@ function executeSubSelectedArray(
     );
   });
 }
-

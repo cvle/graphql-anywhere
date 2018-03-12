@@ -809,4 +809,33 @@ describe('graphql anywhere', () => {
       },
     });
   });
+
+  it('Ignores @skip and @include when variables are undefined', () => {
+    const resolver = (_, root) => root + 'fake';
+
+    const query = gql`
+      {
+        a {
+          b @include(if: $whatever)
+          c @skip(if: true)
+        }
+      }
+    `;
+
+    const result = graphql(
+      resolver,
+      query,
+      '',
+      null,
+      null,
+      { includeAll: true },
+    );
+
+    assert.deepEqual(result, {
+      a: {
+        b: 'fakefake',
+        c: 'fakefake',
+      },
+    });
+  });
 });
