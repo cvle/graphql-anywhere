@@ -1,6 +1,6 @@
 {
   "name": "@coralproject/graphql-anywhere-optimized",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Fork of graphql-anywhere with custom optimizations",
   "main": "./lib/src/index.js",
   "typings": "./lib/src/index.d.ts",
